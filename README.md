@@ -63,3 +63,17 @@ drwxr-xr-x 130 root root   20480 11月  2 23:39 ../
 -rw-r--r--   1 root root     154 11月  2 23:35 params.pkl
 -rw-r--r--   1 root root    2993 11月  2 23:35 wrapped_kernel.cu
 ```
+
+
+## RMSNorm
+
+Triton
+```bash
+Testing on: cuda (3080)
+Shape           Ref Time (ms)   Custom Time (ms) Speedup    Accuracy
+---------------------------------------------------------------------------
+Triton 1x4096     0.066           0.052           1.28       True
+Triton 4096x4096     0.693           0.049           14.20      False
+Triton 4096x14336    2.378           0.049           48.13      False
+Triton 14336x4096     2.379           0.049           48.13      False
+```
