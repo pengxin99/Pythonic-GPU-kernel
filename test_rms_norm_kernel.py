@@ -1,9 +1,8 @@
 import time
 import torch
 
-import triton
-import triton.language as tl
 from rms_norm_triton import rms_norm_triton_kernel as rms_tt
+from rms_norm_tilelang import rms_norm_splitk_impl_tilelang as rms_tl
 '''
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -42,28 +41,27 @@ def test_RMSNorm():
     
     # 测试配置
     test_shapes = [
-        (1, 4096),      # 方阵
-        (4096, 4096),      # 大方阵
-        (4096, 14336),     # 宽矩阵
-        (14336, 4096),     # 高矩阵
+        (1, 4096), 
+        (4096, 4096), 
+        (4096, 14336),
+        (14336, 4096),
     ]
     
     num_iterations = 100
     rtol, atol = 1e-3, 1e-3
-    eps = 1e-5
+    eps = 1e-6
+    eps_tensor = torch.ones(1, device=device) * eps     # for tilelang, input need an tensor
 
     print(f"{'Shape':<15} {'Ref Time (ms)':<15} {'Custom Time (ms)':<15} {'Speedup':<10} {'Accuracy':<10}")
     print("-" * 75)
     
     for in_features, out_features in test_shapes:
         # 准备数据
-        x = torch.randn(in_features, out_features, device=device)
-        weight = torch.randn(out_features, device=device)
-        
-        # 参考实现
+        x = torch.randn(in_features, out_features, device=device, dtype=torch.float16)
+        weight = torch.ones(out_features, device=device, dtype=torch.float16)  # 向量
+        output = torch.empty_like(x)
+
         ref_output = ref_rms_norm(x, weight, eps)
-        # print(ref_output, ref_output.shape)
-        
 
         # 性能测试 - 参考实现
         torch.cuda.synchronize() if device == 'cuda' else None
@@ -98,13 +96,11 @@ def test_RMSNorm():
             ###################  Triton kernel  ##########################
 
 
-        if False:
+        if True:
             ###################  TileLang kernel  ##########################
-            # tilelang_RMSNorm_custom_kernel = tilelang_RMSNorm_custom(N=out_features, K=in_features, BLOCK_N=128, BLOCK_L=128)       # for naive_RMSNorm 
-            # tilelang_RMSNorm_custom_kernel = tilelang_RMSNorm_custom(N=out_features, K=in_features, BLOCK_N=4, reduce_threads=128)  # for splitk_RMSNorm_vectorized
-            tilelang_RMSNorm_custom_kernel = tilelang_RMSNorm_custom(N=out_features, K=in_features)                                   # for get_autotuned_kernel    
+            tilelang_RMSNorm_custom_kernel = rms_tl(M=in_features, K=out_features)      # for get_autotuned_kernel    
             # 自定义 kernel (临时用参考实现代替)
-            custom_output = tilelang_RMSNorm_custom_kernel(x, weight)  # 替换为: custom_RMSNorm(x, weight)
+            custom_output = tilelang_RMSNorm_custom_kernel(x, weight, eps_tensor)
             # print(custom_output)
 
             # 准确性检查
@@ -114,7 +110,7 @@ def test_RMSNorm():
             
             start = time.time()
             for _ in range(num_iterations):
-                tilelang_RMSNorm_custom_kernel(x, weight)  # 替换为: custom_RMSNorm(x, weight)
+                tilelang_RMSNorm_custom_kernel(x, weight, eps_tensor)
             torch.cuda.synchronize() if device == 'cuda' else None
             custom_time = (time.time() - start) * 1000 / num_iterations  # ms per iteration
             ###################  TileLang kernel  ##########################

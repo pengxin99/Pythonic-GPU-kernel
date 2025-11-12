@@ -69,11 +69,15 @@ drwxr-xr-x 130 root root   20480 11月  2 23:39 ../
 
 Triton
 ```bash
-Testing on: cuda (3080)
-Shape           Ref Time (ms)   Custom Time (ms) Speedup    Accuracy
+Testing on: cuda (3080 10G)
+Shape           Ref Time (ms)   Custom Time (ms) Speedup    Accuracy  
 ---------------------------------------------------------------------------
-Triton 1x4096     0.066           0.052           1.28       True
-Triton 4096x4096     0.693           0.049           14.20      False
-Triton 4096x14336    2.378           0.049           48.13      False
-Triton 14336x4096     2.379           0.049           48.13      False
+Triton 1x4096     0.047           0.022           2.17       True      
+TileLang 1x4096     0.047           0.019           2.52       True      
+Triton 4096x4096     0.897           0.020           44.92      True      
+TileLang 4096x4096     0.897           0.100           8.99       True      
+Triton 4096x14336    3.078           0.020           153.41     True      
+TileLang 4096x14336    3.078           0.501           6.14       True      
+Triton 14336x4096     3.079           0.020           154.90     True      
+TileLang 14336x4096     3.079           0.341           9.03       True 
 ```
